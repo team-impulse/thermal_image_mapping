@@ -1,0 +1,13 @@
+[package]
+name = "heat_map"
+version = "0.1.0"
+authors = ["sarjo"]
+
+[dependencies.nalgebra]
+git = "https://github.com/sebcrozet/nalgebra"
+
+[dependencies]
+
+term = "0.2"
+csv = "0.14.2"
+rustc-serialize = "0.3.14"
