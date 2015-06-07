@@ -9,20 +9,50 @@ use std::cmp::{ partial_min, partial_max };
 use std::f64::consts;
 
 fn build_region(lat: f64, lon: f64, h: f64, bear: f64, x: i64, y: i64) -> (Box<Fn(f64,f64) -> bool>, f64, f64, f64, f64) {
-    let long_units = h*20f64.tan()/8.0/110574.0;
-    let lat_units = h*5f64.tan()/2.0/110574.0;
-
+    const RESOLUTION_X : f64 = 20./360.0*consts::PI_2;
+    const RESOLUTION_Y : f64 = 5./360.0*consts::PI_2;
+    let long_units = h*RESOLUTION_X.tan()/8.0/110574.0;
+    let lat_units = h*RESOLUTION_Y.tan()/2.0/110574.0;
+    //println!("{} {}", long_units, lat_units);
     let rotation = Mat2::new(bear.cos(), -bear.sin(), bear.sin(), bear.cos());
-    let tl = rotation*Vec2::new(((x-8) as f64)*long_units, ((2-y) as f64)*lat_units);
-    let br = rotation*Vec2::new(((x-8+1) as f64)*long_units, ((2-y-1) as f64)*lat_units);
+    let tl = rotation*Vec2::new(((x-8) as f64)*long_units, ((2-y) as f64)*lat_units) + Vec2::new(lon, lat);
+    let tr = rotation*Vec2::new(((x-8+1) as f64)*long_units, ((2-y) as f64)*lat_units) + Vec2::new(lon, lat); 
+    let bl = rotation*Vec2::new(((x-8) as f64)*long_units, ((2-y-1) as f64)*lat_units) + Vec2::new(lon, lat); 
+    let br = rotation*Vec2::new(((x-8+1) as f64)*long_units, ((2-y-1) as f64)*lat_units) + Vec2::new(lon, lat);
 
+    //println!("{}, {} {}, {} {}, {} {}, {}", tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y);
+    
+    let max_x = partial_max(partial_max(tl.x, br.x).unwrap(),partial_max(bl.x,tr.x).unwrap()).unwrap();
+    let max_y = partial_max(partial_max(tl.y, br.y).unwrap(),partial_max(bl.y,tr.y).unwrap()).unwrap();
+    let min_x = partial_min(partial_min(tl.x, br.x).unwrap(),partial_min(bl.x,tr.x).unwrap()).unwrap();
+    let min_y = partial_min(partial_min(tl.y, br.y).unwrap(),partial_min(bl.y,tr.y).unwrap()).unwrap();
 
-    let max_x = partial_max(tl.x, br.x).unwrap() + lon;
-    let max_y = partial_max(tl.y, br.y).unwrap() + lat;
-    let min_x = partial_min(tl.x, br.x).unwrap() + lon;
-    let min_y = partial_min(tl.y, br.y).unwrap() + lat;
-    //println!("{},{},{},{}", max_x, max_y, min_x, min_y);       
-    (Box::new(move |x,y| if x < max_x && x > min_x && y < max_y && y > min_y { true } else { false }), max_x, min_x, max_y, min_y)
+    /*fn rect_area(x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64) -> f64 {
+        let a = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+        let b = ((x3 - x2).powi(2) + (y3 - y2).powi(2)).sqrt();
+        let area = a*b;
+        area
+    }*/
+    let rect_are = (long_units*lat_units).abs();
+    fn tring_area(x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64) -> f64 {
+        let a = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+        let b = ((x3 - x2).powi(2) + (y3 - y2).powi(2)).sqrt();
+        let c = ((x3 - x1).powi(2) + (y3 - y1).powi(2)).sqrt();
+
+        let s = (a + b + c)/2.;
+        let area = (s*(s-a)*(s-b)*(s-c)).sqrt();
+        area
+    }
+    
+
+    (Box::new(move |x,y| { 
+        //println!("{} {}", rect_area(tl.x,tl.y,tr.x,tr.y,br.x,br.y), rect_are);
+        if (tring_area(x, y, tl.x, tl.y, bl.x, bl.y) + tring_area(x, y, tl.x, tl.y, tr.x, tr.y) + tring_area(x, y, tr.x, tr.y, br.x, br.y) + tring_area(x, y, br.x, br.y, bl.x, bl.y) - rect_are).abs() < 0.000000000000000001 {
+            true 
+        } else { 
+            false 
+        }
+    }), max_x, min_x, max_y, min_y)
 }
 
 fn build_all_regions(temps: Vec<Vec<Vec<i64>>>, env_data: Vec<(f64, f64, f64, f64)>) -> (Vec<Vec<(Box<Fn(f64,f64) -> bool>,i64)>>, f64,f64,f64,f64) {
@@ -79,7 +109,7 @@ fn get_data(path: String) -> (Vec<Vec<Vec<i64>>>, Vec<(f64,f64,f64,f64)>) {
                         vec![record.t31,record.t32,record.t33,record.t34,record.t35,record.t36,record.t37,record.t38,record.t39,record.t310,record.t311,record.t312,record.t313,record.t314,record.t315,record.t316],
                         vec![record.t41,record.t42,record.t43,record.t44,record.t45,record.t46,record.t47,record.t48,record.t49,record.t410,record.t411,record.t412,record.t413,record.t414,record.t415,record.t416]]);
 
-        env_data.push((record.lat, record.long, record.h, record.bear/360.0*consts::PI_2));
+        env_data.push((record.lat, record.long, record.h, (record.bear + 90.)/360.0*consts::PI_2));
     }
     (temps, env_data)
 }
