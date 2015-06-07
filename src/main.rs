@@ -109,7 +109,7 @@ fn get_data(path: String) -> (Vec<Vec<Vec<i64>>>, Vec<(f64,f64,f64,f64)>) {
                         vec![record.t31,record.t32,record.t33,record.t34,record.t35,record.t36,record.t37,record.t38,record.t39,record.t310,record.t311,record.t312,record.t313,record.t314,record.t315,record.t316],
                         vec![record.t41,record.t42,record.t43,record.t44,record.t45,record.t46,record.t47,record.t48,record.t49,record.t410,record.t411,record.t412,record.t413,record.t414,record.t415,record.t416]]);
 
-        env_data.push((record.lat, record.long, record.h, (record.bear + 90.)/360.0*consts::PI_2));
+        env_data.push((record.lat, record.long, record.h, record.bear/360.0*consts::PI_2));
     }
     (temps, env_data)
 }
