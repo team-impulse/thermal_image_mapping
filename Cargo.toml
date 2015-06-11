@@ -11,3 +11,7 @@ git = "https://github.com/sebcrozet/nalgebra"
 term = "0.2"
 csv = "0.14.2"
 rustc-serialize = "0.3.14"
+
+[profile.release]
+codegen-units = 4
+lto = false
